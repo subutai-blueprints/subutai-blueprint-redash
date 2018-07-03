@@ -49,7 +49,7 @@
 
     - name: Create base redash directory
       file:
-          path: /opt/redash
+          path: /opt/redash/current
           state: directory
           owner: redash
           group: redash
