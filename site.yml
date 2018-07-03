@@ -17,9 +17,9 @@
 
 - hosts: rd 
   remote_user: root
+  vars:
+      redash_version: 3.0.0.b3134
   tasks:
-      vars:
-          redash_version: 3.0.0.b3134
 
     - name: Install required debs
       apt: 
