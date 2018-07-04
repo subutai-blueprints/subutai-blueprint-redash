@@ -23,24 +23,25 @@
 
     - name: Install required debs
       apt: 
-        name: "{{ items }}"
+        name: "{{ item }}"
         state: present
-        with_items:
-            - python-pip
-            - python-dev
-            - nginx
-            - curl
-            - build-essential
-            - pwgen
-            - libffi-dev 
-            - libssl-dev
-            - default-libmysqlclient-dev
-            - libpq-dev
-            - freetds-dev
-            - libsasl2-dev
-            - postgresql
-            - redis-server
-            - supervisor
+      with_items:
+        - python-pip
+        - python-dev
+        - nginx
+        - curl
+        - build-essential
+        - pwgen
+        - libffi-dev 
+        - libssl-dev
+        - default-libmysqlclient-dev
+        - libpq-dev
+        - freetds-dev
+        - libsasl2-dev
+        - postgresql
+        - redis-server
+        - supervisor
+        - sudo
 
     - name: Create redash user
       user:
@@ -55,16 +56,16 @@
           group: redash
 
     - name: Save environment settings
-      file:
+      copy:
           src: env
-          dest: /opt/redash/.env
+          dest: /opt/redash/current/.env
 
     - name: Generate cookie secret for site
-      shell: COOKIE_SECRET=$(pwgen -1s 32) && echo "export REDASH_COOKIE_SECRET=$COOKIE_SECRET" >> /opt/redash/.env
+      shell: COOKIE_SECRET=$(pwgen -1s 32) && echo "export REDASH_COOKIE_SECRET=$COOKIE_SECRET" >> /opt/redash/current/.env
 
     - name: Get redash source
       get_url:
-          src: "https://s3.amazonaws.com/redash-releases/redash.{{ redash_version }}.tar.gz"
+          url: "https://s3.amazonaws.com/redash-releases/redash.{{ redash_version }}.tar.gz"
           dest: /tmp/redash.tar.gz
 
     - name: Unarchieve redash
@@ -75,12 +76,31 @@
           owner: redash
           group: redash
 
+    - name: Set pip conf file
+      copy:
+          src: pip.conf
+          dest: /etc/pip.conf
+
+    - name: Install pip module
+      pip:
+          name: setproctitle
+
     - name: Install python dependencies
       pip:
           requirements: "{{ item }}"
-          with_items:
-              - /opt/redash/current/requirements.txt
-              - /opt/redash/current/requirements_all_ds.txt
+      with_items:
+          - /opt/redash/current/requirements.txt
+          - /opt/redash/current/requirements_all_ds.txt
+
+    - name: Configure Postgresql
+      copy:
+          src: pg_hba.conf
+          dest: /etc/postgresql/9.6/main/pg_hba.conf
+
+    - name: Restart postgresql
+      service:
+          name: postgresql
+          state: restarted
 
     - name: Create Database User
       postgresql_user:
@@ -93,12 +113,28 @@
           owner: redash
 
     - name: Setup tables
+      become: yes
+      become_user: redash
       django_manage:
           app_path: /opt/redash/current
           command: "database create_tables"
 
-    - name: Setup supervisor conf file
+    - name: Setup migration
+      become: yes
+      become_user: redash
+      django_manage:
+          app_path: /opt/redash/current
+          command: db migrate
+
+    - name: Create Error log directory
       file:
+          path: /var/log/redash
+          owner: redash
+          group: redash
+          state: directory
+
+    - name: Setup supervisor conf file
+      copy:
           src: supervisord.conf
           dest: /etc/supervisor/conf.d/redash.conf
 
@@ -108,9 +144,9 @@
           state: restarted
 
     - name: Copy redash server file
-      file:
+      copy:
           src: nginx_redash_site
-          dest: /etc/nginx/sites-enabled/redash
+          dest: /etc/nginx/sites-available/redash
 
     - name: Enable redash server
       file:
@@ -118,6 +154,11 @@
           src: /etc/nginx/sites-available/redash
           dest: /etc/nginx/sites-enabled/redash
           state: link
+
+    - name: Remove default site
+      file:
+          path: /etc/nginx/sites-enabled/default
+          state: absent
 
     - name: Restart nginx
       service:
