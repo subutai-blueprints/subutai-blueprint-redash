@@ -112,10 +112,10 @@
           name: redash
           owner: root
 
-    - name: Configure Postgresql
-      copy:
-          src: pg_hba.conf
-          dest: /etc/postgresql/9.6/main/pg_hba.conf
+    - name: Restart postgresql once more
+      service:
+          name: postgresql
+          state: restarted
 
     - name: Setup tables
       django_manage:
