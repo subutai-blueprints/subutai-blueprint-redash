@@ -43,17 +43,10 @@
         - supervisor
         - sudo
 
-    - name: Create redash user
-      user:
-          name: redash
-          system: yes
-
     - name: Create base redash directory
       file:
           path: /opt/redash/current
           state: directory
-          owner: redash
-          group: redash
 
     - name: Save environment settings
       copy:
@@ -73,8 +66,13 @@
           src:  /tmp/redash.tar.gz
           dest: /opt/redash/current
           remote_src: yes
-          owner: redash
-          group: redash
+
+    - name: Set file permissions
+      file: 
+        dest: /opt/redash/current
+        owner: root
+        group: root
+        recurse: yes
 
     - name: Set pip conf file
       copy:
@@ -103,34 +101,30 @@
           state: restarted
 
     - name: Create Database User
+      become: yes
+      become_user: postgres
       postgresql_user:
-          name: redash
+          name: root
           state: present
 
     - name: Create Database
       postgresql_db:
           name: redash
-          owner: redash
+          owner: root
+
+    - name: Configure Postgresql
+      copy:
+          src: pg_hba.conf
+          dest: /etc/postgresql/9.6/main/pg_hba.conf
 
     - name: Setup tables
-      become: yes
-      become_user: redash
       django_manage:
           app_path: /opt/redash/current
           command: "database create_tables"
 
-    - name: Setup migration
-      become: yes
-      become_user: redash
-      django_manage:
-          app_path: /opt/redash/current
-          command: db migrate
-
     - name: Create Error log directory
       file:
           path: /var/log/redash
-          owner: redash
-          group: redash
           state: directory
 
     - name: Setup supervisor conf file
