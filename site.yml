@@ -117,10 +117,15 @@
           name: postgresql
           state: restarted
 
+#    - name: Setup tables
+#      django_manage:
+#          app_path: /opt/redash/current
+#          command: "database create_tables"
     - name: Setup tables
-      django_manage:
-          app_path: /opt/redash/current
-          command: "database create_tables"
+      shell: . .env && ./manage database create_tables
+      args:
+          chdir: /opt/redash/current
+
 
     - name: Create Error log directory
       file:
