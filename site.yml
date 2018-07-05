@@ -121,8 +121,9 @@
 #      django_manage:
 #          app_path: /opt/redash/current
 #          command: "database create_tables"
+#
     - name: Setup tables
-      shell: . .env && ./manage database create_tables
+      shell: ". ./.env && ./manage.py database create_tables"
       args:
           chdir: /opt/redash/current
 
