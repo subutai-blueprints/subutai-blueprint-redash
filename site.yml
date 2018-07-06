@@ -123,10 +123,13 @@
 #          command: "database create_tables"
 #
     - name: Setup tables
-      shell: ". ./.env && ./manage.py database create_tables"
+      shell: ./manage.py database create_tables
       args:
           chdir: /opt/redash/current
-
+      environment:
+        REDASH_LOG_LEVEL: "INFO"
+        REDASH_REDIS_URL: "redis://localhost:6379/0"
+        REDASH_DATABASE_URL: "postgresql:///redash"
 
     - name: Create Error log directory
       file:
